@@ -15,6 +15,7 @@ from app.tools.manager import ToolManager
 from app.services.chat_service import ChatService
 from app.services.document_service import DocumentService
 from app.services.agent_service import AgentService
+from app.workflows.n8n.webhook_handler import router as n8n_router
 from app.core.exceptions import AgentPlatformException, AgentNotFoundError
 
 logger = get_logger("api.app")
@@ -125,3 +126,5 @@ async def chat(request: ChatRequest, current_user: User = Depends(get_current_us
 
 
 logger.info(f"API application created at {settings.app_api_prefix}")
+
+app.include_router(n8n_router, prefix="/workflows", tags=["Workflows"])
