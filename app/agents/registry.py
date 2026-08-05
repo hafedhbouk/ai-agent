@@ -50,7 +50,7 @@ class AgentRegistry:
                 "description": agent.description,
                 "model": agent.model_name,
                 "temperature": agent.temperature,
-                "tools": agent.tools,
+                "tools": [t.name for t in agent.tools] if agent.tools else [],
                 "is_active": agent.is_active,
                 "vector_collection": agent.vector_collection,
                 "config_path": config.config_path if config else None,

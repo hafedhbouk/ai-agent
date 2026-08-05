@@ -4,6 +4,7 @@ from app.agents.schemas import AgentYAMLConfig
 from app.agents.loader import AgentLoader
 from app.agents.registry import AgentRegistry
 from app.agents.factory import AgentFactory
+from app.agents.langgraph.orchestrator import orchestrator
 from app.core.logging import get_logger
 from app.core.config import settings
 from app.core.exceptions import AgentPlatformException
@@ -22,17 +23,28 @@ class AgentManager:
         self.registry = AgentRegistry()
         self._loaded = False
 
-    def load_agents(self) -> List[AgentYAMLConfig]:
+    def load_agents(self, tools: Optional[List[Any]] = None) -> List[AgentYAMLConfig]:
         configs = self.loader.load_all()
         loaded = []
         for config in configs:
             try:
-                agent = AgentFactory.load_and_register(config)
+                agent_tools = tools or self._resolve_tools(config.tools or [])
+                agent = AgentFactory.load_and_register(config, tools=agent_tools)
                 loaded.append(config)
             except Exception as e:
                 logger.error(f"Failed to register agent '{config.name}': {e}")
         self._loaded = True
         return loaded
+
+    def _resolve_tools(self, tool_names: List[str]) -> List[Any]:
+        resolved = []
+        from app.tools.manager import ToolManager
+        tm = ToolManager()
+        for name in tool_names:
+            tool = tm.get_tool(name)
+            if tool:
+                resolved.append(tool)
+        return resolved
 
     def get_agent(self, name: str) -> BaseAgent:
         if not self._loaded:
