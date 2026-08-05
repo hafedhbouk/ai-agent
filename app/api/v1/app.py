@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -17,6 +17,8 @@ from app.services.document_service import DocumentService
 from app.services.agent_service import AgentService
 from app.workflows.n8n.webhook_handler import router as n8n_router
 from app.core.exceptions import AgentPlatformException, AgentNotFoundError
+import aiofiles
+from pathlib import Path
 
 logger = get_logger("api.app")
 app = FastAPI(
@@ -71,7 +73,7 @@ class AgentInfo(BaseModel):
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)) -> User:
     token = credentials.credentials
-    payload = create_access_token  # placeholder to avoid unused import warning
+    payload = create_access_token
     from app.utils.security import decode_access_token
     payload = decode_access_token(token)
     if payload is None:
@@ -113,6 +115,13 @@ def list_agents(current_user: User = Depends(get_current_user)):
     return agent_manager.list_agents()
 
 
+@app.post(f"{settings.app_api_prefix}/agents/reload", summary="Reload all agents from YAML files")
+def reload_agents(current_user: User = Depends(get_current_user)):
+    agent_manager = AgentManager()
+    names = agent_manager.reload()
+    return {"reloaded": names}
+
+
 @app.post(f"{settings.app_api_prefix}/chat", response_model=ChatResponse, summary="Send a message to an agent")
 async def chat(request: ChatRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     agent_manager = AgentManager()
@@ -123,6 +132,53 @@ async def chat(request: ChatRequest, current_user: User = Depends(get_current_us
     context = AgentContext(conversation_id=request.conversation_id, user_id=current_user.id)
     result = await chat_service.chat(current_user, request)
     return ChatResponse(**result)
+
+
+@app.post(f"{settings.app_api_prefix}/documents/upload", summary="Upload a document for ingestion")
+async def upload_document(
+    file: UploadFile = File(...),
+    collection_name: str = "default",
+    chunk_size: int = 1000,
+    chunk_overlap: int = 200,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    upload_dir = Path("./data/uploads")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = upload_dir / file.filename
+    try:
+        async with aiofiles.open(file_path, "wb") as f:
+            content = await file.read()
+            await f.write(content)
+        document_service = DocumentService(db, RAGService())
+        result = await document_service.ingest_file(current_user.id, str(file_path), collection_name, chunk_size, chunk_overlap)
+        return result
+    except Exception as e:
+        logger.error(f"Upload failed: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.get(f"{settings.app_api_prefix}/documents", summary="List ingested documents")
+def list_documents(
+    collection_name: str | None = None,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    document_service = DocumentService(db, RAGService())
+    docs = document_service.get_documents(collection_name, skip, limit)
+    return [
+        {
+            "id": d.id,
+            "filename": d.filename,
+            "collection_name": d.collection_name,
+            "status": d.status.value,
+            "chunk_count": d.chunk_count,
+            "created_at": d.created_at.isoformat(),
+        }
+        for d in docs
+    ]
 
 
 logger.info(f"API application created at {settings.app_api_prefix}")
