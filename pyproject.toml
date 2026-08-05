@@ -1,0 +1,67 @@
+[project]
+name = "ia-agent-platform"
+version = "1.0.0"
+description = "Professional modular AI agent platform"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Architect" }]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.5.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.12",
+    "python-dotenv>=1.0.1",
+    "pyyaml>=6.0.1",
+    "openai>=1.40.0",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-community>=0.3.0",
+    "chromadb>=0.5.0",
+    "pypdf2>=3.0.1",
+    "python-docx>=1.1.0",
+    "loguru>=0.7.3",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "tenacity>=9.0.0",
+    "python-magic>=0.4.27",
+    "aiofiles>=24.1.0",
+    "slowapi>=0.1.9",
+    "streamlit>=1.38.0",
+    "requests>=2.32.0",
+]
+
+[dependency-groups]
+dev = [
+    "black>=24.8.0",
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+    "pytest-cov>=5.0.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

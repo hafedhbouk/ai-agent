@@ -1,0 +1,15 @@
+name: maintenance
+description: Assistant maintenance industrielle
+system_prompt: prompts/maintenance.md
+vector_collection: maintenance
+database_tables:
+  - interventions
+  - machines
+  - pieces
+tools:
+  - rag_search
+  - sql_query
+  - create_pdf
+model: gpt-4o
+temperature: 0.2
+max_tokens: 4000

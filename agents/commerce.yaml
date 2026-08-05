@@ -1,0 +1,17 @@
+name: commerce
+description: Assistant commerce et devis
+system_prompt: prompts/commerce.md
+vector_collection: commerce
+database_tables:
+  - devis
+  - clients
+  - commandes
+tools:
+  - rag_search
+  - sql_query
+  - send_email
+  - create_pdf
+  - calculator
+model: gpt-4o
+temperature: 0.3
+max_tokens: 4000

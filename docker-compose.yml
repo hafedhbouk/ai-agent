@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/agent_platform.db
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - APP_API_PREFIX=/api/v1
+    volumes:
+      - ./data:/app/data
+      - ./agents:/app/agents
+      - ./app/prompts:/app/prompts
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - backend
+    restart: unless-stopped

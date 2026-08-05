@@ -1,0 +1,16 @@
+name: qualite
+description: Assistant qualite et conformite
+system_prompt: prompts/qualite.md
+vector_collection: qualite
+database_tables:
+  - non_conformites
+  - audits
+  - actions_correctives
+tools:
+  - rag_search
+  - sql_query
+  - create_pdf
+  - send_email
+model: gpt-4o
+temperature: 0.1
+max_tokens: 4000

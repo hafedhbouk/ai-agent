@@ -1,0 +1,16 @@
+name: rh
+description: Assistant ressources humaines
+system_prompt: prompts/rh.md
+vector_collection: rh
+database_tables:
+  - employes
+  - conges
+  - formations
+tools:
+  - rag_search
+  - sql_query
+  - send_email
+  - create_pdf
+model: gpt-4o
+temperature: 0.1
+max_tokens: 3000
