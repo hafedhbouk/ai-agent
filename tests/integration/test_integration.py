@@ -108,7 +108,7 @@ class TestIntegrationDocuments:
 
 class TestIntegrationWorkflows:
     def test_list_workflows(self):
-        response = client.get("/api/v1/workflows/workflows")
+        response = client.get("/api/v1/workflows/")
         assert response.status_code == 200
         workflows = response.json()
         assert isinstance(workflows, list)
@@ -130,7 +130,7 @@ class TestIntegrationWorkflows:
             ],
         }
         response = client.post(
-            "/api/v1/workflows/workflows",
+            "/api/v1/workflows/",
             headers=headers,
             json=workflow_def,
         )

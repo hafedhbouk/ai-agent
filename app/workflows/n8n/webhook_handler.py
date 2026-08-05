@@ -52,12 +52,12 @@ def get_execution_status(
     return execution
 
 
-@router.get("/workflows", summary="List all workflows")
+@router.get("/", summary="List all workflows")
 def list_workflows():
     return _executor.list_workflows()
 
 
-@router.post("/workflows", summary="Register a new workflow")
+@router.post("/", summary="Register a new workflow")
 def register_workflow(definition: Dict[str, Any]):
     return _executor.register_workflow(definition)
 
