@@ -7,6 +7,8 @@ from app.tools.send_email import SendEmailTool, SendEmailInput
 from app.tools.create_pdf import CreatePDFTool, CreatePDFInput
 from app.tools.search import SearchTool, SearchInput
 from app.tools.calculator import CalculatorTool, CalculatorInput
+from app.tools.ocr import OCRTool, OCRInput
+from app.tools.web_scraper import WebScraperTool, WebScraperInput
 
 __all__ = [
     "BaseTool",
@@ -26,4 +28,8 @@ __all__ = [
     "SearchInput",
     "CalculatorTool",
     "CalculatorInput",
+    "OCRTool",
+    "OCRInput",
+    "WebScraperTool",
+    "WebScraperInput",
 ]

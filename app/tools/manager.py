@@ -7,6 +7,8 @@ from app.tools.send_email import SendEmailTool
 from app.tools.create_pdf import CreatePDFTool
 from app.tools.search import SearchTool
 from app.tools.calculator import CalculatorTool
+from app.tools.ocr import OCRTool
+from app.tools.web_scraper import WebScraperTool
 from app.core.logging import get_logger
 
 logger = get_logger("tools.manager")
@@ -24,6 +26,8 @@ class ToolManager:
         self.registry.register(CreatePDFTool)
         self.registry.register(SearchTool)
         self.registry.register(CalculatorTool)
+        self.registry.register(OCRTool)
+        self.registry.register(WebScraperTool)
 
     def get_tool(self, name: str) -> Optional[BaseTool]:
         tool_class = self.registry.get(name)
