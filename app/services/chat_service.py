@@ -23,20 +23,18 @@ class ChatService:
 
     async def chat(self, user: Optional[User], request: Any) -> Dict[str, Any]:
         agent = self.agent_manager.get_agent(request.agent_name)
-        context = AgentContext(
-            conversation_id=request.conversation_id,
-            user_id=user.id if user else None,
-        )
-        if request.conversation_id:
-            history = self._get_history(request.conversation_id)
-            context.metadata["history"] = history
+        conversation = self._get_or_create_conversation(user, request.agent_name, request.conversation_id)
+        history = self._get_history(conversation.id)
+        rag_context = await self._get_rag_context(request.message, agent.vector_collection)
+        metadata: Dict[str, Any] = {"history": history}
+        if rag_context:
+            metadata["rag_context"] = rag_context
         agent_context = AgentContext(
-            conversation_id=request.conversation_id,
+            conversation_id=conversation.id,
             user_id=user.id if user else None,
-            metadata={"history": context.metadata.get("history", [])},
+            metadata=metadata,
         )
         response: AgentResponse = await self.agent_manager.run_agent(request.agent_name, request.message, agent_context)
-        conversation = self._get_or_create_conversation(user, request.agent_name, request.conversation_id)
         user_msg = Message(conversation_id=conversation.id, role=MessageRole.USER, content=request.message)
         assistant_msg = Message(
             conversation_id=conversation.id,
@@ -81,3 +79,13 @@ class ChatService:
             .all()
         )
         return [{"role": m.role.value, "content": m.content} for m in reversed(messages)]
+
+    async def _get_rag_context(self, query: str, collection_name: Optional[str], top_k: int = 5) -> Optional[List[Dict[str, Any]]]:
+        if not collection_name:
+            return None
+        try:
+            result = await self.rag_service.search(query=query, collection_name=collection_name, top_k=top_k)
+            return result.get("results") or result.get("documents") or []
+        except Exception as e:
+            logger.warning(f"RAG search failed for collection '{collection_name}': {e}")
+            return None

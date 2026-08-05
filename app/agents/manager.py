@@ -7,14 +7,9 @@ from app.agents.factory import AgentFactory
 from app.agents.langgraph.orchestrator import orchestrator
 from app.core.logging import get_logger
 from app.core.config import settings
-from app.core.exceptions import AgentPlatformException
+from app.core.exceptions import AgentPlatformException, AgentNotFoundError
 
 logger = get_logger("agents.manager")
-
-
-class AgentNotFoundError(AgentPlatformException):
-    def __init__(self, agent_name: str):
-        super().__init__(f"Agent '{agent_name}' not found", "AGENT_NOT_FOUND")
 
 
 class AgentManager:

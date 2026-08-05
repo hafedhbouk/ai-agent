@@ -130,8 +130,12 @@ async def chat(request: ChatRequest, current_user: User = Depends(get_current_us
     tool_manager = ToolManager()
     chat_service = ChatService(db, agent_manager, rag_service, tool_manager)
     from app.agents.base import AgentContext
+    from app.core.exceptions import AgentNotFoundError
     context = AgentContext(conversation_id=request.conversation_id, user_id=current_user.id)
-    result = await chat_service.chat(current_user, request)
+    try:
+        result = await chat_service.chat(current_user, request)
+    except AgentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     return ChatResponse(**result)
 
 

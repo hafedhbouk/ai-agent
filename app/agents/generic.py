@@ -60,25 +60,44 @@ class GenericAgent(BaseAgent):
         from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
         llm = ChatOpenAI(model=self.model_name, temperature=self.temperature, max_tokens=self.max_tokens)
+        history = []
+        rag_context = ""
+        if context:
+            history = context.metadata.get("history", []) or []
+            rag_context = self._format_rag_context(context.metadata.get("rag_context"))
+        system_prompt = self.system_prompt
+        if rag_context:
+            system_prompt = f"{self.system_prompt}\n\n## Contexte RAG\n{rag_context}"
         prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system_prompt),
+            ("system", system_prompt),
             MessagesPlaceholder(variable_name="history"),
             ("human", "{message}"),
         ])
         chain = prompt | llm
-        history = []
-        if context and context.metadata.get("history"):
-            history = context.metadata["history"]
         response = await chain.ainvoke({"message": message, "history": history})
         content = response.content if hasattr(response, "content") else str(response)
         latency = int((time.time() - start) * 1000)
-        tokens = getattr(response, "usage_metadata", {}).get("total_tokens") if hasattr(response, "usage_metadata") else None
+        usage = getattr(response, "usage_metadata", None)
+        tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
         return AgentResponse(
             content=content,
             tokens_used=tokens,
             latency_ms=latency,
             model=self.model_name,
         )
+
+    @staticmethod
+    def _format_rag_context(rag_results: Optional[List[Dict[str, Any]]]) -> str:
+        if not rag_results:
+            return ""
+        lines = []
+        for idx, item in enumerate(rag_results, 1):
+            text = item.get("text") or item.get("content") or item.get("document") or ""
+            source = item.get("source") or item.get("metadata", {}).get("source") or ""
+            lines.append(f"{idx}. {text}")
+            if source:
+                lines.append(f"   Source: {source}")
+        return "\n".join(lines)
 
     async def stream(self, message: str, context: Optional[AgentContext] = None):
         try:
@@ -91,16 +110,20 @@ class GenericAgent(BaseAgent):
                 max_tokens=self.max_tokens,
                 streaming=True,
             )
+            history = []
+            rag_context = ""
+            if context:
+                history = context.metadata.get("history", []) or []
+                rag_context = self._format_rag_context(context.metadata.get("rag_context"))
+            system_prompt = self.system_prompt
+            if rag_context:
+                system_prompt = f"{self.system_prompt}\n\n## Contexte RAG\n{rag_context}"
             prompt = ChatPromptTemplate.from_messages([
-                ("system", self.system_prompt),
+                ("system", system_prompt),
                 MessagesPlaceholder(variable_name="history"),
                 ("human", "{message}"),
             ])
             chain = prompt | llm
-            history = []
-            if context and context.metadata.get("history"):
-                history = context.metadata["history"]
-
             async for chunk in chain.astream({"message": message, "history": history}):
                 yield chunk
         except Exception as e:

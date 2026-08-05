@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -18,18 +19,6 @@ test_engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_t
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-client = TestClient(app)
-
-
 @pytest.fixture(scope="session", autouse=True)
 def setup_db():
     Base.metadata.create_all(bind=test_engine)
@@ -47,7 +36,22 @@ def setup_db():
     Base.metadata.drop_all(bind=test_engine)
 
 
-def get_token():
+@pytest.fixture()
+def client():
+    def override_get_db():
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.pop(get_db, None)
+
+
+def get_token(client):
     response = client.post(
         "/api/v1/auth/login",
         data={"username": "integration@test.com", "password": "testpass"},
@@ -55,9 +59,18 @@ def get_token():
     return response.json()["access_token"]
 
 
+from langchain_core.runnables import RunnableLambda
+from langchain_core.messages import AIMessage
+
+
+def fake_llm(*args, **kwargs):
+    return AIMessage(content="Mocked agent response")
+
+
 class TestIntegrationChat:
-    def test_chat_endpoint_returns_response(self):
-        token = get_token()
+    @patch("langchain_openai.ChatOpenAI", lambda *args, **kwargs: RunnableLambda(fake_llm))
+    def test_chat_endpoint_returns_response(self, client):
+        token = get_token(client)
         headers = {"Authorization": f"Bearer {token}"}
         response = client.post(
             "/api/v1/chat",
@@ -69,8 +82,9 @@ class TestIntegrationChat:
         assert "content" in data
         assert "conversation_id" in data
 
-    def test_chat_with_unknown_agent(self):
-        token = get_token()
+    @patch("langchain_openai.ChatOpenAI", lambda *args, **kwargs: RunnableLambda(fake_llm))
+    def test_chat_with_unknown_agent(self, client):
+        token = get_token(client)
         headers = {"Authorization": f"Bearer {token}"}
         response = client.post(
             "/api/v1/chat",
@@ -81,40 +95,40 @@ class TestIntegrationChat:
 
 
 class TestIntegrationAgents:
-    def test_list_agents_returns_all(self):
-        token = get_token()
+    def test_list_agents_returns_all(self, client):
+        token = get_token(client)
         headers = {"Authorization": f"Bearer {token}"}
         response = client.get("/api/v1/agents", headers=headers)
         assert response.status_code == 200
         agents = response.json()
         assert len(agents) >= 4
 
-    def test_reload_agents(self):
-        token = get_token()
+    def test_reload_agents(self, client):
+        token = get_token(client)
         headers = {"Authorization": f"Bearer {token}"}
         response = client.post("/api/v1/agents/reload", headers=headers)
         assert response.status_code == 200
 
 
 class TestIntegrationDocuments:
-    def test_upload_endpoint_requires_auth(self):
+    def test_upload_endpoint_requires_auth(self, client):
         response = client.post("/api/v1/documents/upload")
         assert response.status_code == 401
 
-    def test_documents_list_requires_auth(self):
+    def test_documents_list_requires_auth(self, client):
         response = client.get("/api/v1/documents")
         assert response.status_code == 401
 
 
 class TestIntegrationWorkflows:
-    def test_list_workflows(self):
+    def test_list_workflows(self, client):
         response = client.get("/api/v1/workflows/")
         assert response.status_code == 200
         workflows = response.json()
         assert isinstance(workflows, list)
 
-    def test_register_workflow(self):
-        token = get_token()
+    def test_register_workflow(self, client):
+        token = get_token(client)
         headers = {"Authorization": f"Bearer {token}"}
         workflow_def = {
             "workflow_id": "test_workflow",
@@ -136,8 +150,8 @@ class TestIntegrationWorkflows:
         )
         assert response.status_code == 200
 
-    def test_trigger_workflow(self):
-        token = get_token()
+    def test_trigger_workflow(self, client):
+        token = get_token(client)
         headers = {"Authorization": f"Bearer {token}"}
         response = client.post(
             "/api/v1/workflows/trigger/test_workflow",
@@ -148,7 +162,7 @@ class TestIntegrationWorkflows:
 
 
 class TestIntegrationHealth:
-    def test_health_endpoint(self):
+    def test_health_endpoint(self, client):
         response = client.get("/api/v1/health")
         assert response.status_code == 200
         data = response.json()
@@ -157,14 +171,14 @@ class TestIntegrationHealth:
 
 
 class TestIntegrationAuth:
-    def test_login_invalid_credentials(self):
+    def test_login_invalid_credentials(self, client):
         response = client.post(
             "/api/v1/auth/login",
             data={"username": "wrong@example.com", "password": "wrongpass"},
         )
         assert response.status_code == 401
 
-    def test_login_valid_credentials(self):
+    def test_login_valid_credentials(self, client):
         response = client.post(
             "/api/v1/auth/login",
             data={"username": "integration@test.com", "password": "testpass"},
