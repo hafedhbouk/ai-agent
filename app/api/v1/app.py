@@ -15,8 +15,9 @@ from app.tools.manager import ToolManager
 from app.services.chat_service import ChatService
 from app.services.document_service import DocumentService
 from app.services.agent_service import AgentService
-from app.workflows.n8n.webhook_handler import router as n8n_router
 from app.core.exceptions import AgentPlatformException, AgentNotFoundError
+from app.workflows.n8n.executor import executor, WorkflowExecutor
+from app.workflows.n8n.schemas import N8nWebhookPayload, WebhookResponse
 import aiofiles
 from pathlib import Path
 
@@ -183,4 +184,64 @@ def list_documents(
 
 logger.info(f"API application created at {settings.app_api_prefix}")
 
-app.include_router(n8n_router, prefix="/workflows", tags=["Workflows"])
+
+@app.get(f"{settings.app_api_prefix}/workflows", summary="List all workflows")
+def list_workflows():
+    return executor.list_workflows()
+
+
+@app.post(f"{settings.app_api_prefix}/workflows", summary="Register a new workflow")
+def register_workflow(definition: dict):
+    return executor.register_workflow(definition)
+
+
+@app.post(f"{settings.app_api_prefix}/workflows/trigger/{{workflow_id}}", summary="Trigger a workflow manually")
+async def trigger_workflow(workflow_id: str, payload: dict, db: Session = Depends(get_db)):
+    try:
+        execution = await executor.execute(
+            workflow_id=workflow_id,
+            payload=N8nWebhookPayload(
+                workflow_id=workflow_id,
+                workflow_name=workflow_id,
+                trigger_node="manual",
+                execution_id=f"manual_{workflow_id}",
+                data=payload,
+            ),
+            db=db,
+        )
+        return WebhookResponse(
+            execution_id=execution.execution_id,
+            status=execution.status,
+            message="Workflow triggered successfully",
+            result=execution.results,
+        )
+    except Exception as e:
+        logger.error(f"Manual trigger failed: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.post(f"{settings.app_api_prefix}/workflows/webhook/{{workflow_id}}", summary="Receive n8n webhook payload")
+async def n8n_webhook(workflow_id: str, payload: N8nWebhookPayload, db: Session = Depends(get_db)):
+    try:
+        execution = await executor.execute(
+            workflow_id=workflow_id,
+            payload=payload,
+            db=db,
+        )
+        return WebhookResponse(
+            execution_id=execution.execution_id,
+            status=execution.status,
+            message="Workflow executed successfully",
+            result=execution.results,
+        )
+    except Exception as e:
+        logger.error(f"Webhook execution failed: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.get(f"{settings.app_api_prefix}/workflows/webhook/{{workflow_id}}/status/{{execution_id}}", summary="Get execution status")
+def get_execution_status(workflow_id: str, execution_id: str):
+    execution = executor.get_execution(execution_id)
+    if not execution:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found")
+    return execution
