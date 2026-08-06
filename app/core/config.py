@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o"
     openai_embedding_model: str = "text-embedding-3-small"
 
+    llm_provider: str = "openai"
+    llm_model: str = "gpt-4o"
+
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1:8b"
+
+    groq_api_key: str = ""
+    groq_model: str = "llama3-70b-8192"
+
     chroma_db_path: str = "./data/chroma"
 
     jwt_secret_key: str = "change-me-jwt-secret"

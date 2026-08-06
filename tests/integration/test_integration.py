@@ -68,7 +68,7 @@ def fake_llm(*args, **kwargs):
 
 
 class TestIntegrationChat:
-    @patch("langchain_openai.ChatOpenAI", lambda *args, **kwargs: RunnableLambda(fake_llm))
+    @patch("app.llm.providers.LLMProviderFactory.create", lambda *args, **kwargs: RunnableLambda(fake_llm))
     def test_chat_endpoint_returns_response(self, client):
         token = get_token(client)
         headers = {"Authorization": f"Bearer {token}"}
@@ -82,7 +82,7 @@ class TestIntegrationChat:
         assert "content" in data
         assert "conversation_id" in data
 
-    @patch("langchain_openai.ChatOpenAI", lambda *args, **kwargs: RunnableLambda(fake_llm))
+    @patch("app.llm.providers.LLMProviderFactory.create", lambda *args, **kwargs: RunnableLambda(fake_llm))
     def test_chat_with_unknown_agent(self, client):
         token = get_token(client)
         headers = {"Authorization": f"Bearer {token}"}
