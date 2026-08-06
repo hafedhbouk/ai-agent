@@ -4,6 +4,7 @@ from app.vectorstore.base import BaseVectorStore, DocumentChunk, SearchResult
 from app.core.logging import get_logger
 from app.core.exceptions import VectorStoreError
 from app.core.config import settings
+from app.embeddings.providers import EmbeddingProviderFactory
 
 logger = get_logger("vectorstore.chroma")
 
@@ -36,12 +37,7 @@ class ChromaDBVectorStore(BaseVectorStore):
     async def add_documents(self, chunks: List[DocumentChunk], collection_name: str) -> List[str]:
         await self._ensure_initialized()
         try:
-            from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
-
-            embedding_fn = OpenAIEmbeddingFunction(
-                api_key=settings.openai_api_key,
-                model_name=settings.openai_embedding_model,
-            )
+            embedding_fn = EmbeddingProviderFactory.create()
             collection = self._client.get_or_create_collection(
                 name=collection_name,
                 embedding_function=embedding_fn,
@@ -73,12 +69,7 @@ class ChromaDBVectorStore(BaseVectorStore):
     ) -> List[SearchResult]:
         await self._ensure_initialized()
         try:
-            from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
-
-            embedding_fn = OpenAIEmbeddingFunction(
-                api_key=settings.openai_api_key,
-                model_name=settings.openai_embedding_model,
-            )
+            embedding_fn = EmbeddingProviderFactory.create()
             collection = self._client.get_or_create_collection(
                 name=collection_name,
                 embedding_function=embedding_fn,
@@ -119,12 +110,7 @@ class ChromaDBVectorStore(BaseVectorStore):
     async def get_collection_stats(self, collection_name: str) -> Dict[str, Any]:
         await self._ensure_initialized()
         try:
-            from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
-
-            embedding_fn = OpenAIEmbeddingFunction(
-                api_key=settings.openai_api_key,
-                model_name=settings.openai_embedding_model,
-            )
+            embedding_fn = EmbeddingProviderFactory.create()
             collection = self._client.get_or_create_collection(name=collection_name, embedding_function=embedding_fn)
             count = collection.count()
             return {"name": collection_name, "count": count}

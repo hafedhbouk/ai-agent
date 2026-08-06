@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
+    ollama_embedding_model: str = "nomic-embed-text"
 
     groq_api_key: str = ""
     groq_model: str = "llama3-70b-8192"
