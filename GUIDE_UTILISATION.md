@@ -7,7 +7,10 @@ La plateforme IA Agent permet de créer, configurer et utiliser des agents conve
 ## 2. Prérequis
 
 - Python 3.12
-- Clé API OpenAI
+- Un provider LLM au choix :
+  - **OpenAI** : clé API OpenAI
+  - **Ollama** : installation locale d'Ollama pour une utilisation hors ligne
+  - **Groq** : clé API Groq (cloud gratuit)
 - Docker et Docker Compose (recommandé pour la fonctionnalité RAG complète)
 
 ## 3. Installation
@@ -27,8 +30,27 @@ cp .env.example .env
 
 Éditer `.env` et renseigner au minimum :
 
+**Option A — OpenAI (cloud)**
 ```env
+LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-votre-cle-api
+DATABASE_URL=sqlite:///./data/agent_platform.db
+```
+
+**Option B — Ollama (local, gratuit, hors ligne)**
+```env
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+DATABASE_URL=sqlite:///./data/agent_platform.db
+```
+
+**Option C — Groq (cloud gratuit)**
+```env
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk-votre-cle-api
+GROQ_MODEL=llama3-70b-8192
 DATABASE_URL=sqlite:///./data/agent_platform.db
 ```
 
@@ -221,6 +243,8 @@ max_tokens: 4000
 is_active: true
 ```
 
+> **Note** : Le champ `model` est optionnel. Si absent, le modèle par défaut du provider configuré dans `.env` sera utilisé (`LLM_MODEL` pour OpenAI, `OLLAMA_MODEL` pour Ollama, `GROQ_MODEL` pour Groq).
+
 ### 8.3. Ajouter un agent
 
 1. Créer un fichier `agents/mon_agent.yaml`
@@ -298,14 +322,48 @@ tools:
 
 ## 11. Modèles et paramètres
 
-### 11.1. Modèles supportés
+### 11.1. Providers LLM supportés
 
-- `gpt-4o`
-- `gpt-4o-mini`
-- `gpt-4-turbo`
-- `gpt-3.5-turbo`
+L'application supporte trois providers LLM, configurables via la variable `LLM_PROVIDER` dans `.env` :
 
-### 11.2. Température
+| Provider | Type | Modèles par défaut | Configuration requise |
+|----------|------|-------------------|----------------------|
+| **OpenAI** | Cloud | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` | `OPENAI_API_KEY` |
+| **Ollama** | Local | `llama3.1:8b`, `llama3.1:70b` | Ollama installé + modèle téléchargé |
+| **Groq** | Cloud gratuit | `llama3-70b-8192`, `llama3-8b-8192` | `GROQ_API_KEY` |
+
+### 11.2. Configuration des modèles
+
+**OpenAI**
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+LLM_MODEL=gpt-4o
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+**Ollama (local)**
+```env
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+```
+Télécharger les modèles :
+```bash
+ollama pull llama3.1:8b
+ollama pull nomic-embed-text
+ollama serve
+```
+
+**Groq (cloud gratuit)**
+```env
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=llama3-70b-8192
+```
+
+### 11.3. Température
 
 | Valeur | Comportement |
 |--------|--------------|
@@ -313,7 +371,7 @@ tools:
 | 0.7 | Équilibré (défaut) |
 | 1.5+ | Réponses créatives, variées |
 
-### 11.3. Max tokens
+### 11.4. Max tokens
 
 Contrôle la longueur maximale de la réponse. Valeurs courantes : 1024, 2048, 4000, 8192.
 
@@ -363,6 +421,25 @@ Vérifier que :
 ### 13.5. Erreur 422 lors de l'appel API
 
 Vérifier le format des champs obligatoires dans le corps de la requête. Consulter le schéma dans `/docs`.
+
+### 13.6. Erreur avec Ollama
+
+Vérifier que :
+- Ollama est installé et lancé : `ollama serve`
+- Le modèle est téléchargé : `ollama pull llama3.1:8b`
+- L'URL dans `.env` est correcte : `OLLAMA_BASE_URL=http://localhost:11434`
+
+Tester manuellement :
+```bash
+ollama run llama3.1:8b
+```
+
+### 13.7. Erreur avec Groq
+
+Vérifier que :
+- La clé API Groq est valide
+- Le quota n'est pas dépassé (30 requêtes/minute en gratuit)
+- Le modèle spécifié existe : `llama3-70b-8192` ou `llama3-8b-8192`
 
 ## 14. Glossaire
 
